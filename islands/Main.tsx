@@ -1,7 +1,8 @@
 import { lodash as _ } from "lodash";
 import { parse, stringify } from "yaml";
 
-import { Signal, signal, useComputed, useSignal } from "@preact/signals";
+import { useMemo } from "preact/hooks";
+import { Signal, signal, useSignal } from "@preact/signals";
 
 import { yamlFile, yamlTags } from "../data/TestData.ts";
 
@@ -63,16 +64,29 @@ const CheckboxTag = function CheckboxTag(
   );
 };
 
+const partition = (arr: string[], predicate: (item: string) => boolean) => {
+  const result = [[], []] as string[][];
+  for (const item of arr) {
+    result[predicate(item) ? 0 : 1].push(item);
+  }
+  return result;
+};
+
 const TagCategory = function TagCategory(
   props: { tags: string[]; category: string[]; categoryName: string },
 ) {
   const showList = useSignal(false);
+  const [checked, unchecked] = useMemo(() => partition(props.category, (tag) => props.tags.includes(tag)), [props.tags, props.category]);
   return (
-    <td class="text-xs px-1 text-gray-300 rounded">
+    <td class="text-xs px-1 text-gray-300"
+    onMouseEnter={() => showList.value = true}
+      onMouseLeave={() => showList.value = false}>
       <ul>
         {props.category &&
-          props.category.filter((tag, i) => showList.value ? true : i <= 6 //tagLookup[tag]
-          ).map((tag) => <CheckboxTag tags={props.tags} tag={tag} />)}
+          // props.category.filter((tag, i) => showList.value ? true : i <= 6 //tagLookup[tag]
+          // ).map((tag) => <CheckboxTag tags={props.tags} tag={tag} />)}
+          checked.map((tag) => <CheckboxTag tags={props.tags} tag={tag} />)}
+          {unchecked.length > 0 && unchecked.filter((_, i) => showList.value ? true : i + checked.length < 6).map((tag) => <CheckboxTag tags={props.tags} tag={tag} />)}
       </ul>
     </td>
   );
@@ -85,6 +99,7 @@ const TagCategoryHeader = function TagCategoryHeader(
   const value = useSignal("");
   return (
     <th
+      class='sticky top-0'
       // onMouseEnter={() => showList.value = true}
       // onMouseLeave={() => showList.value = false}
     >
@@ -117,12 +132,13 @@ const TagCategoryHeader = function TagCategoryHeader(
 };
 
 const TagItemHeader = function TagItemHeader() {
-  const showList = useSignal(false);
+  const showList = useSignal(true);
   const value = useSignal("");
   return (
     <th
-      onMouseEnter={() => showList.value = true}
-      onMouseLeave={() => showList.value = false}
+      class='sticky top-0'
+      // onMouseEnter={() => showList.value = true}
+      // onMouseLeave={() => showList.value = false}
     >
       <p>Item</p>
       {showList.value && (
@@ -152,8 +168,8 @@ const Entry = function Entry(
   props: { name: string; s: Signal<Tags>; f: Signal<File> },
 ) {
   return (
-    <tr>
-      <td>{props.name}</td>
+    <tr class='hover:bg-gray-100 align-top '>
+      <td class='sticky left-0 '>{props.name}</td>
       {props.s.value &&
         Object.keys(props.s.value).map((category) => (
           <TagCategory
@@ -170,7 +186,7 @@ const List = function List() {
   if (!parsedFile.value) return null;
   if (!parsedTags.value) return null;
   return (
-    <table>
+    <table class='align-top'>
       <thead>
         <tr>
           <TagItemHeader />
@@ -195,7 +211,7 @@ export default function Main() {
 
   return (
     <div class="container w-full mx-0 px-0">
-      <div class="p-8 mt-6 lg:mt-0 rounded shadow bg-white">
+      <div class="p-8 mt-6 lg:mt-0 bg-white">
         <List />
       </div>
       <div class="grid grid-flow-col auto-cols-max grid-cols-6">
@@ -246,7 +262,7 @@ export default function Main() {
             // should take
           }}
         >
-          Dump
+          Dump (not implemented)
         </button>
 
         {error.value && (
