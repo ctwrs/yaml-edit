@@ -1,32 +1,13 @@
 import { lodash as _ } from "lodash";
 import { parse, stringify } from "yaml";
 
-import { computed, Signal, signal, useSignal } from "@preact/signals";
+import { computed, Signal, signal, useComputed, useSignal } from "@preact/signals";
 
-export const yamlTags = `
-Cat1:
-  - tag1
-  - tag2
-Cat2:
-  - tag3
-  - tag4
-`;
-export const yamlFile = `
-Sports Bikini:
-  Tags:
-  - tag1
-  - tag2
-  - tag3
-
-
-Tankini:
-  Tags:
-  - tag4
-`;
+import { yamlFile, yamlTags } from "../data/TestData.ts";
 
 export const error = signal<Error | null>(null);
 
-const parsedTags = signal<Record<string, Record<string, boolean>>>({});
+const parsedTags = signal<Record<string, string[]>>({});
 
 const parseTags = (tags: string) => {
   let parsed: Record<string, string[]>;
@@ -35,16 +16,9 @@ const parseTags = (tags: string) => {
     if (!parsed) return null;
   } catch (e) {
     error.value = e;
+    return null;
   }
-  // @ts-ignore possibly null but it's fine
-  const formated = Object.entries(parsed).reduce((acc, [key, value]) => {
-    acc[key] = value.reduce((acc, value) => {
-      acc[value] = false;
-      return acc;
-    }, {} as Record<string, boolean>);
-    return acc;
-  }, {} as Record<string, Record<string, boolean>>);
-  return formated;
+  return parsed;
 };
 
 // const tagCategories = computed(() => {
@@ -93,30 +67,30 @@ const dataModel = signal<Record<string, Record<string, Record<string, boolean>>>
 // instead of prepping the data we should just use the data as is
 // then use tags also as is, and use computed lookups to match, this will make adding tags pretty easy
 
-const buildDataModel = (parsedFile: Record<string, Record<string, string[]>>) => {
-  if (!parsedTags.value) return null;
-  if (!tagCategoryMap.value) return null;
+// const buildDataModel = (parsedFile: Record<string, Record<string, string[]>>) => {
+//   if (!parsedTags.value) return null;
+//   if (!tagCategoryMap.value) return null;
 
-  // @ts-ignore wtf type inference that's not correct
-  const formated: Record<string, Record<string, Record<string, boolean>>> =
-  // @ts-ignore possibly null but it's fine
-    Object.entries(parsedFile).reduce((acc, [key, value]) => {
-      if (!parsedTags.value) return null;
-      const tags = _.cloneDeep(parsedTags.value);
+//   // @ts-ignore wtf type inference that's not correct
+//   const formated: Record<string, Record<string, Record<string, boolean>>> =
+//   // @ts-ignore possibly null but it's fine
+//     Object.entries(parsedFile).reduce((acc, [key, value]) => {
+//       if (!parsedTags.value) return null;
+//       const tags = _.cloneDeep(parsedTags.value);
 
-      value.Tags.forEach((tag) => {
-        if (!tagCategoryMap.value) return null;
-        const category = tagCategoryMap.value[tag];
-        if (!category) return;
-        tags[category][tag] = true;
-      });
-      acc[key] = tags;
+//       value.Tags.forEach((tag) => {
+//         if (!tagCategoryMap.value) return null;
+//         const category = tagCategoryMap.value[tag];
+//         if (!category) return;
+//         tags[category][tag] = true;
+//       });
+//       acc[key] = tags;
 
-      return acc;
-    }, {} as Record<string, Record<string, Record<string, boolean>>>);
-  console.log(formated);
-  return formated;
-};
+//       return acc;
+//     }, {} as Record<string, Record<string, Record<string, boolean>>>);
+//   console.log(formated);
+//   return formated;
+// };
 
 const ChipTag = function ChipTag(
   props: { category: Signal<Record<string, boolean>>; tag: string },
@@ -139,16 +113,22 @@ const ChipTag = function ChipTag(
 };
 
 const CheckboxTag = function CheckboxTag(
-  props: { category: Signal<Record<string, boolean>>; tag: string },
+  props: { tags: string[]; tag: string },
 ) {
+  const tagIndex = props.tags.indexOf(props.tag);
   return (
     <div class="flex items-center">
       <input
         type="checkbox"
         class="h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
-        checked={props.category.value[props.tag]}
-        onChange={() =>
-          props.category.value[props.tag] = !props.category.value[props.tag]}
+        checked={tagIndex > -1}
+        onChange={() => {
+          if (tagIndex > -1) {
+            props.tags.splice(tagIndex, 1)
+           } else {
+            props.tags.push(props.tag)
+           }
+          }}
       />
       <label class="ml-2 block text-sm leading-5 text-gray-900">
         {props.tag}
@@ -157,41 +137,15 @@ const CheckboxTag = function CheckboxTag(
   );
 };
 
-const TagAdd = function TagAdd(
-  props: { category: Signal<Record<string, boolean>>; name: string },
-) {
-  const value = useSignal("");
-  return (
-    <div class="flex items-center">
-      <input
-        type="text"
-        class="h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
-        onChange={(e) => value.value = e.currentTarget?.value}
-      />
-      <button
-        class="ml-2 block text-sm leading-5 text-gray-900"
-        onClick={() => {
-          if (!parsedTags.value) return;
-          console.log(value.value);
-          parsedTags.value[props.name] = {
-            ...parsedTags.value[props.name],
-            [value.value]: false,
-          };
-          parsedTags.value = { ...parsedTags.value };
-          dataModel.value = buildDataModel(parsedFile.value) || {};
-        }}
-      >
-        +
-      </button>
-    </div>
-  );
-};
-
 const TagCategory = function TagCategory(
-  props: { category: Record<string, boolean>; categoryName: string },
+  props: { tags: string[], category: string[]; categoryName: string },
 ) {
-  const category = useSignal(props.category);
   const showList = useSignal(false);
+  const value = useSignal("");
+  const tagLookup = props.tags.reduce((acc, curr) => {
+    acc[curr] = true;
+    return acc;
+  }, {} as Record<string, boolean>);
   return (
     <div
       class="text-xs px-1 text-gray-300 rounded"
@@ -208,12 +162,29 @@ const TagCategory = function TagCategory(
         </div> */
         }
         <ul>
-          {Object.keys(category.value).filter((tag) =>
-            showList.value ? true : category.value[tag]
-          ).map((tag) => <CheckboxTag category={category} tag={tag} />)}
+          {props.category && props.category.filter((tag) =>
+            showList.value ? true : tagLookup[tag]
+          ).map((tag) => <CheckboxTag tags={props.tags} tag={tag} />)}
         </ul>
         {showList.value && (
-          <TagAdd category={category} name={props.categoryName} />
+              <div class="flex items-center">
+              <input
+                type="text"
+                class="h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                onChange={(e) => value.value = e.currentTarget?.value}
+              />
+              <button
+                class="ml-2 block text-sm leading-5 text-gray-900"
+                onClick={() => {
+                  if (!parsedTags.value) return;
+                  console.log(value.value);
+                  parsedTags.value[props.categoryName].push(value.value);
+                  value.value = "";
+                }}
+              >
+                +
+              </button>
+            </div>
         )}
       </div>
     </div>
@@ -221,14 +192,15 @@ const TagCategory = function TagCategory(
 };
 
 const TagCategories = function TagCategories(
-  props: { categories: Record<string, Record<string, boolean>> },
+  props: { tags: string[] },
 ) {
   return (
     <>
-      {props.categories &&
-        Object.keys(props.categories).map((category) => (
+      {parsedTags.value &&
+        Object.keys(parsedTags.value).map((category) => (
           <TagCategory
-            category={props.categories[category]}
+            tags={props.tags}
+            category={parsedTags.value[category]}
             categoryName={category}
           />
         ))}
@@ -237,24 +209,24 @@ const TagCategories = function TagCategories(
 };
 
 const Entry = function Entry(
-  props: { name: string; categories: Record<string, Record<string, boolean>> },
+  props: { name: string; tags: string[] },
 ) {
   return (
-    <div class="grid grid-flow-col auto-cols-max grid-cols-8">
+    <div class="flex">
       <div class="justify-center">{props.name}</div>
-      <TagCategories categories={props.categories} />
+      <TagCategories tags={props.tags} />
     </div>
   );
 };
 
 const List = function List() {
-  const parsed = dataModel.value;
+  const parsed = parsedFile.value;
   if (!parsed) return null;
   return (
     <>
       {Object.keys(parsed).map((key) => (
         //@ts-ignore wtf it returns an array as parsed, fuck that
-        <Entry name={key} categories={parsed[key]} />
+        <Entry name={key} tags={parsed[key].Tags} />
       ))}
     </>
   );
@@ -299,12 +271,12 @@ export default function Main() {
             return;
           }
           parsedFile.value = file;
-          const model = buildDataModel(parsedFile.value);
-          if (!model) {
-            console.error("no model");
-            return;
-          }
-          dataModel.value = model;
+          // const model = buildDataModel(parsedFile.value);
+          // if (!model) {
+          //   console.error("no model");
+          //   return;
+          // }
+          // dataModel.value = model;
         }}
       >
         Parse

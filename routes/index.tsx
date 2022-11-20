@@ -1,7 +1,5 @@
 import { Head } from "$fresh/runtime.ts";
-import { yamlTags } from "../data/yamlTags.ts";
 import Main from "../islands/Main.tsx";
-import Textarea from "../islands/Textarea.tsx";
 
 export default function Home() {
   return (
