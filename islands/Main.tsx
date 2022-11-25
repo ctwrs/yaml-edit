@@ -6,7 +6,16 @@ import { Signal, signal, useComputed, useSignal } from "@preact/signals";
 
 import { yamlFile, yamlTags } from "../data/TestData.ts";
 
-const ls = localStorage || { getItem: () => null, setItem: () => null };
+let ls: Storage;
+if (typeof localStorage !== "undefined") {
+  ls = localStorage;
+} else {
+  // @ts-ignore we dont use more than get and set
+  ls = {
+    getItem: () => null,
+    setItem: () => {},
+  };
+}
 
 export const error = signal<{ mark: { buffer: string, position: number, line: number, column: number }; name: string; file: string; } | null>(null);
 
