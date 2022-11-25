@@ -6,11 +6,7 @@ import { Signal, signal, useComputed, useSignal } from "@preact/signals";
 
 import { yamlFile, yamlTags } from "../data/TestData.ts";
 
-import 'localstorage';
-
-const {localStorage} = window
-
-const ls = localStorage;
+const ls = localStorage || { getItem: () => null, setItem: () => null };
 
 export const error = signal<{ mark: { buffer: string, position: number, line: number, column: number }; name: string; file: string; } | null>(null);
 
