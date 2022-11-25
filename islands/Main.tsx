@@ -321,9 +321,17 @@ export default function Main() {
 
   useEffect(() => {
     const i = setInterval(() => {
-      Object.keys(parsedTags.value).length > 0 && ls.setItem('yamlTags', stringify(parsedTags.value));
-      Object.keys(parsedFile.value).length > 0 && ls.setItem('yamlFile', stringify(parsedFile.value));
-    }, 10000)
+      if (Object.keys(parsedTags.value).length > 0) {
+        const tags = stringify(parsedTags.value);
+        ls.setItem('yamlTags', tags);
+        localYamlTags.value = tags;
+      }
+      if (Object.keys(parsedFile.value).length > 0) {
+        const file = stringify(parsedFile.value);
+        ls.setItem('yamlFile', file);
+        localYamlFile.value = file;
+      }
+    }, 10000);
 
     return () => clearInterval(i);
   }, []);
@@ -351,7 +359,7 @@ export default function Main() {
             rows={10}
             onChange={(e) => localYamlTags.value = e.currentTarget.value}
           >
-            {localYamlTags.value}
+            {localYamlTags}
           </textarea>
         </div>
         <div>
@@ -360,7 +368,7 @@ export default function Main() {
             rows={10}
             onChange={(e) => localYamlFile.value = e.currentTarget.value}
           >
-            {localYamlFile.value}
+            {localYamlFile}
           </textarea>
         </div>
 
