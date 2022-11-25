@@ -6,6 +6,9 @@ import { Signal, signal, useComputed, useSignal } from "@preact/signals";
 
 import { yamlFile, yamlTags } from "../data/TestData.ts";
 
+import 'localstorage';
+
+const {localStorage} = window
 
 const ls = localStorage;
 

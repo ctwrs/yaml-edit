@@ -9,6 +9,7 @@
     "twind": "https://esm.sh/twind@0.16.17",
     "twind/": "https://esm.sh/twind@0.16.17/",
     "yaml": "https://deno.land/std/encoding/yaml.ts",
-    "lodash": "https://deno.land/x/deno_ts_lodash/mod.ts"
+    "lodash": "https://deno.land/x/deno_ts_lodash/mod.ts",
+    "localstorage": "https://deno.land/x/localstorage/mod.ts"
   }
 }
