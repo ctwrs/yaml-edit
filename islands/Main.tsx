@@ -6,7 +6,10 @@ import { Signal, signal, useComputed, useSignal } from "@preact/signals";
 
 import { yamlFile, yamlTags } from "../data/TestData.ts";
 
-export const error = signal<Error | null>(null);
+
+const ls = localStorage;
+
+export const error = signal<{ mark: { buffer: string, position: number, line: number, column: number }; name: string; file: string; } | null>(null);
 
 type Config = {
   item_in_separate_row: boolean;
@@ -22,6 +25,7 @@ const parseTags = (tags: string) => {
     parsed = parse(tags || "") as Tags;
     if (!parsed) return null;
   } catch (e) {
+    e.file = "tags";
     error.value = e;
     return null;
   }
@@ -38,6 +42,7 @@ const parseFile = (file: string) => {
     console.log(parsed);
     if (!parsed) return null;
   } catch (e) {
+    e.file = "file";
     error.value = e;
     return null;
   }
@@ -231,7 +236,7 @@ const Entry = function Entry(
 
   return  config.value.item_in_separate_row ? (
     <><tr class="bg-white align-top ">
-        <td colSpan={Object.keys(props.s.value).length}>
+        <td colSpan={Object.keys(props.s.value).length + 1}>
         {props.name}
         </td>
       </tr>
@@ -274,13 +279,71 @@ const List = function List() {
   );
 };
 
+const dl = (value: string, fileName: string) => {
+
+  const tempLink = document.createElement("a");
+  const taBlob = new Blob([value], {type: 'text/plain'});
+
+  tempLink.setAttribute('href', URL.createObjectURL(taBlob));
+  tempLink.setAttribute('download', `${fileName.toLowerCase()}`);
+  tempLink.click();
+
+  URL.revokeObjectURL(tempLink.href);
+};
+
 export default function Main() {
-  const localYamlTags = useSignal(yamlTags);
-  const localYamlFile = useSignal(yamlFile);
+  const localYamlTags = useSignal('');
+  const localYamlFile = useSignal('');
+
+  const triedLoading = useSignal(false);
+
+  useEffect(() => {
+    if (triedLoading.value) return;
+    triedLoading.value = true;
+    localYamlTags.value = ls.getItem('yamlTags') || yamlTags;
+    const tags = parseTags(localYamlTags.value);
+    if (!tags) {
+      console.error("no tags");
+      return;
+    }
+    parsedTags.value = tags;
+
+    localYamlFile.value = ls.getItem('yamlFile') || yamlFile;
+    const file = parseFile(localYamlFile.value);
+    if (!file) {
+      console.error("no file");
+      return;
+    }
+    parsedFile.value = file;
+
+    config.value = JSON.parse(ls.getItem('config') || JSON.stringify(config.value));
+  }, [triedLoading.value]);
+
+  useEffect(() => {
+    const i = setInterval(() => {
+      Object.keys(parsedTags.value).length > 0 && ls.setItem('yamlTags', stringify(parsedTags.value));
+      Object.keys(parsedFile.value).length > 0 && ls.setItem('yamlFile', stringify(parsedFile.value));
+    }, 10000)
+
+    return () => clearInterval(i);
+  }, []);
 
   return (
+
     <div class="container w-full mx-0 px-0">
       <List />
+      {error.value && (
+          <div
+            class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+            role="alert"
+          >
+            <strong class="font-bold">Error in yaml {error.value.file}!</strong>
+            <span class="block sm:inline">
+              <div class="p-4">{error.value.mark.buffer.substring(error.value.mark.position - 30, error.value.mark.position + 30).split('\n').map(x => <p>{x}</p>)}</div>
+              {`line: ${error.value.mark.line}, column: ${error.value.mark.column}`}
+            </span>
+          </div>
+        )}
       <div class="grid grid-flow-col auto-cols-max grid-cols-6">
         <div>
           <h3>Yaml Tags</h3>
@@ -326,37 +389,32 @@ export default function Main() {
           type="button"
           class="py-2 px-3 bg-black text-white text-sm font-semibold rounded-md shadow focus:outline-none"
           onClick={() => {
-            // should take
+            const date = new Date()
+              .toISOString()
+              .split('')
+              .filter((l) => /[0-9]/g.test(l))
+              .slice(0, 14)
+              .join('');
+            dl(stringify(parsedTags.value), `${date}-tags.yaml`);
+            dl(stringify(parsedFile.value), `${date}-file.yaml`);
           }}
         >
-          Dump (not implemented)
+          Download
         </button>
-
-        {error.value && (
-          <div
-            class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
-            role="alert"
-          >
-            <strong class="font-bold">Error!</strong>
-            <span class="block sm:inline">
-              {JSON.stringify(error, null, 4)}
-            </span>
-          </div>
-        )}
 
         <button
           class="py-2 px-3 bg-black text-white text-sm font-semibold rounded-md shadow focus:outline-none"
           onClick={() =>
             navigator.clipboard.writeText(stringify(parsedTags.value))}
         >
-          Get Tags
+          Save tags to clipboard
         </button>
         <button
           class="py-2 px-3 bg-black text-white text-sm font-semibold rounded-md shadow focus:outline-none"
           onClick={() =>
             navigator.clipboard.writeText(stringify(parsedFile.value))}
         >
-          Get Yaml
+          Save yaml to clipboard
         </button>
         <input
         type="checkbox"
@@ -364,10 +422,11 @@ export default function Main() {
         checked={config.value.item_in_separate_row}
         onChange={() => {
           config.value = { ...config.value, item_in_separate_row: !config.value.item_in_separate_row };
+          ls.setItem('config', JSON.stringify(config.value));
         }}
       />
       <label class="ml-2 block text-sm leading-5 text-gray-900">
-        Item in separate row
+        Item label in separate row
       </label>
       </div>
     </div>
