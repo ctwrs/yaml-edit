@@ -33,11 +33,13 @@ export const error = signal<
   } | null
 >(null);
 
-type Config = Record<string, string>;
-const config = signal<Config>({
+const defaultConfig = {
   item_in_separate_row: "false",
   enlarge_categories: "1",
-});
+};
+
+type Config = Record<string, string>;
+const config = signal<Config>(defaultConfig);
 
 type Tags = Record<string, string[]>;
 const parsedTags = signal<Tags>({});
@@ -295,7 +297,7 @@ const Entry = function Entry(
   return config.value.item_in_separate_row === "true"
     ? (
       <>
-        <tr class="bg-white align-top ">
+        <tr class="bg-white align-top text-center ">
           <td colSpan={Object.keys(props.s.value).length + 1}>
             {props.name}
           </td>
@@ -591,6 +593,24 @@ export default function Main() {
               }}
             >
               Parse tags and file from input boxes
+            </button>
+
+            <button
+              type="button"
+              class="py-2 px-3 bg-black hover:bg-red-200 text-white text-sm font-semibold rounded-md shadow focus:outline-none"
+              onClick={() => {
+                ls.removeItem("yamlTags");
+                ls.removeItem("yamlFile");
+                ls.removeItem("config");
+                parsedTags.value = {};
+                parsedFile.value = {};
+                config.value = {
+                  ...config.value,
+                  ...defaultConfig,
+                };
+              }}
+            >
+              Clear out local storage (potential for data loss!)
             </button>
 
             <Option
