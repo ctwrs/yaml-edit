@@ -57,21 +57,17 @@ const parseTags = (tags: string) => {
 
 const widestTagCategories = computed(() => {
   const tags = parsedTags.value;
-  console.log({ tags });
   const categories = Object.keys(tags);
   const widest = categories.reduce((acc, category) => {
-    console.log(tags[category]);
     acc[category] = tags[category].sort((a, b) =>
       a.length - b.length
     ).reverse()[0];
-    console.log(acc[category]);
     return acc;
   }, {} as Record<string, string>);
 
   const r = Object.keys(widest).sort((a, b) =>
     widest[a].length - widest[b].length
   ).reverse().slice(0, parseInt(config.value.enlarge_categories)); // an array of categories sorted by length of the widest tag
-  console.log({ tags, r });
   return r;
 });
 
@@ -82,7 +78,6 @@ const parseFile = (file: string) => {
   let parsed: File;
   try {
     parsed = parse(file || "") as File;
-    console.log(parsed);
     if (!parsed) return null;
   } catch (e) {
     e.file = "file";
@@ -99,20 +94,16 @@ const CheckboxTag = function CheckboxTag(
     tag: string;
   },
 ) {
-  const uuid = useUuid();
-  const tagIndex = props.tags.value.indexOf(props.tag);
+  // const uuid = useUuid();
+  const checked = props.tags.value.indexOf(props.tag) > -1;
   return (
-    <div class="flex items-center">
-      <input
-        type="checkbox"
-        id={uuid}
-        class="h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
-        checked={tagIndex > -1}
-        onChange={() => props.toggleTag(props.tag)}
-      />
-      <label for={uuid} class="ml-2 block text-sm leading-5 text-gray-900">
-        {props.tag}
-      </label>
+    <div
+      class={`${
+        checked ? "bg-green-200 hover:bg-red-300" : "hover:bg-green-300"
+      } cursor-pointer border-b-1 border-gray-100 ml-2 block text-sm leading-5 text-gray-900`}
+      onClick={() => props.toggleTag(props.tag)}
+    >
+      {props.tag}
     </div>
   );
 };
@@ -173,7 +164,6 @@ const TagCategoryHeader = function TagCategoryHeader(
   const lowercaseCategoryNames = useComputed(() => {
     return parsedTags.value[props.categoryName].map((tag) => tag.toLowerCase());
   });
-  console.log(props.categoryName, widestTagCategories.value);
   return (
     <>
       <th
@@ -204,9 +194,11 @@ const TagCategoryHeader = function TagCategoryHeader(
           }}
         />
       </th>
-      {widestTagCategories.value.includes(props.categoryName)
+      {
+        /* {widestTagCategories.value.includes(props.categoryName)
         ? <th></th>
-        : <></>}
+        : <></>} */
+      }
     </>
   );
 };
@@ -252,7 +244,7 @@ const TagItemHeader = function TagItemHeader() {
   return (
     <th
       class="sticky top-0"
-      colSpan={config.value.item_in_separate_row
+      colSpan={config.value.item_in_separate_row === "true"
         ? Object.keys(parsedTags.value).length + 1
         : 1}
     >
@@ -294,15 +286,13 @@ const Entry = function Entry(
 
   const onLeave = () => {
     if (_.isEqual(tags.value, props.f.value[props.name].Tags)) {
-      console.log("tags are not different, bye");
       return;
     }
     props.f.value[props.name].Tags = tags.value;
     props.f.value = { ...props.f.value };
-    console.log("tags are different, updating");
   };
 
-  return config.value.item_in_separate_row
+  return config.value.item_in_separate_row === "true"
     ? (
       <>
         <tr class="bg-white align-top ">
@@ -310,14 +300,20 @@ const Entry = function Entry(
             {props.name}
           </td>
         </tr>
-        <tr class="hover:bg-gray-300 align-top " onMouseLeave={onLeave}>
+        <tr
+          class="hover:bg-gray-200 bg-gray-100 align-top "
+          onMouseLeave={onLeave}
+        >
           <td></td>
           {rest}
         </tr>
       </>
     )
     : (
-      <tr class="hover:bg-gray-300 align-top " onMouseLeave={onLeave}>
+      <tr
+        class="hover:bg-gray-200 bg-gray-100 align-top "
+        onMouseLeave={onLeave}
+      >
         <td class="sticky left-0 bg-white">{props.name}</td>
         {rest}
       </tr>
@@ -327,18 +323,17 @@ const Entry = function Entry(
 const List = function List() {
   if (!parsedFile.value) return null;
   if (!parsedTags.value) return null;
-  console.log("rendering list");
 
   return (
-    <table class="align-top table-fixed">
+    <table class="align-top table-auto w-full p-10">
       <thead>
-        {config.value.item_in_separate_row
+        {config.value.item_in_separate_row === "true"
           ? (
             <>
-              <tr class="sticky top-0 bg-white opacity-80 z-10">
+              <tr class="sticky top-0 bg-white opacity-90 z-10">
                 <TagItemHeader />
               </tr>
-              <tr class="sticky top-12 mt-5 bg-white opacity-80 z-10">
+              <tr class="sticky top-12 mt-5 bg-white opacity-90 z-10">
                 <td></td>
                 {Object.keys(parsedTags.value).map((category) => (
                   <TagCategoryHeader categoryName={category} />
@@ -347,7 +342,7 @@ const List = function List() {
             </>
           )
           : (
-            <tr class="sticky top-0 bg-white opacity-80 z-10">
+            <tr class="sticky top-0 bg-white opacity-90 z-10">
               <TagItemHeader />
               {Object.keys(parsedTags.value).map((category) => (
                 <TagCategoryHeader categoryName={category} />
@@ -377,7 +372,7 @@ const dl = (value: string, fileName: string) => {
 };
 
 const Option = function Option(
-  props: { key: string; description: string; options?: string[] },
+  props: { name: string; description: string; options?: string[] },
 ) {
   const uuid = useUuid();
   return (props.options?.length
@@ -385,12 +380,13 @@ const Option = function Option(
       <>
         <select
           id={uuid}
-          onChange={(e) => {
-            if (!config.value[props.key]) return;
-            config.value[props.key] = e.currentTarget.value;
+          onInput={(e) => {
+            if (!config.value[props.name]) return;
+            config.value[props.name] = e.currentTarget.value;
             config.value = { ...config.value };
+            ls.setItem("config", JSON.stringify(config.value));
           }}
-          value={config.value[props.key]}
+          value={config.value[props.name]}
         >
           {props.options.map((option) => (
             <option value={option}>{option}</option>
@@ -407,11 +403,12 @@ const Option = function Option(
           type="checkbox"
           id={uuid}
           class="h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
-          checked={config.value[props.key] === "true"}
-          onChange={() => {
+          checked={config.value[props.name] === "true"}
+          onInput={() => {
+            if (!config.value[props.name]) return;
             config.value = {
               ...config.value,
-              [props.key]: config.value[props.key] === "false"
+              [props.name]: config.value[props.name] === "false"
                 ? "true"
                 : "false",
             };
@@ -432,6 +429,7 @@ export default function Main() {
   const triedLoading = useSignal(false);
 
   useEffect(() => {
+    console.log("loading config");
     if (triedLoading.value) return;
     triedLoading.value = true;
     localYamlTags.value = ls.getItem("yamlTags") || yamlTags;
@@ -473,7 +471,7 @@ export default function Main() {
   }, []);
 
   return (
-    <div class="container w-full mx-0 px-0">
+    <div class="w-full mx-0 px-0">
       <List />
       {error.value && (
         <div
@@ -565,11 +563,11 @@ export default function Main() {
           Save yaml to clipboard
         </button>
         <Option
-          key="item_in_separate_row"
+          name="item_in_separate_row"
           description="Item label in separate row?"
         />
         <Option
-          key="enlarge_categories"
+          name="enlarge_categories"
           description="How many categories should have double width?"
           options={["0", "1", "2", "3", "4", "5", "6"]}
         />

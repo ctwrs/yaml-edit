@@ -7,7 +7,7 @@ export default function Home() {
       <Head>
         <title>Fresh App</title>
       </Head>
-      <div class="bg-gray-100 text-gray-900 tracking-wider leading-normal">
+      <div class="bg-gray-100 text-gray-900 w-full">
         <Main/>
       </div>
     </>
