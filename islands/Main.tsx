@@ -100,7 +100,7 @@ const CheckboxTag = function CheckboxTag(
     <div
       class={`${
         checked ? "bg-green-200 hover:bg-red-300" : "hover:bg-green-300"
-      } cursor-pointer border-b-1 border-gray-100 ml-2 block text-sm leading-5 text-gray-900`}
+      } cursor-pointer border-b-1 border-gray-100 px-1 block text-sm leading-5 text-gray-900`}
       onClick={() => props.toggleTag(props.tag)}
     >
       {props.tag}
@@ -139,7 +139,7 @@ const TagCategory = function TagCategory(
   };
   return (
     <td
-      class="text-sm px-1 text-gray-300"
+      class="text-sm text-gray-300"
       colSpan={props.colSpan}
     >
       <div class=" overflow-auto overflow-x-auto h-64">
@@ -216,7 +216,7 @@ const InputBox = function InputBox(
     <div>
       <input
         type="text"
-        class="w-3/4 border-1 text-indigo-600 transition duration-150 ease-in-out"
+        class="w-5/6 border-1 h-[24px] border-gray-100 text-indigo-600 transition duration-150 ease-in-out"
         value={value.value}
         onInput={(e) => {
           const v = e.currentTarget?.value;
@@ -227,7 +227,7 @@ const InputBox = function InputBox(
         }}
       />
       <button
-        class="w-1/4 text-sm text-gray-900"
+        class="w-1/6 text-sm text-gray-900 h-[24px] hover:bg-gray-100"
         onClick={() => {
           props.onClick(value.value.trim()) && (value.value = "");
         }}
@@ -333,7 +333,7 @@ const List = function List() {
               <tr class="sticky top-0 bg-white opacity-90 z-10">
                 <TagItemHeader />
               </tr>
-              <tr class="sticky top-12 mt-5 bg-white opacity-90 z-10">
+              <tr class="sticky top-12 bg-white opacity-90 z-10">
                 <td></td>
                 {Object.keys(parsedTags.value).map((category) => (
                   <TagCategoryHeader categoryName={category} />
@@ -377,7 +377,7 @@ const Option = function Option(
   const uuid = useUuid();
   return (props.options?.length
     ? (
-      <>
+      <div>
         <select
           id={uuid}
           onInput={(e) => {
@@ -392,13 +392,13 @@ const Option = function Option(
             <option value={option}>{option}</option>
           ))}
         </select>
-        <label for={uuid} class="ml-2 block text-sm leading-5 text-gray-900">
+        <label for={uuid} class="ml-2 text-sm leading-5 text-gray-900">
           {props.description}
         </label>
-      </>
+      </div>
     )
     : (
-      <>
+      <div>
         <input
           type="checkbox"
           id={uuid}
@@ -415,11 +415,22 @@ const Option = function Option(
             ls.setItem("config", JSON.stringify(config.value));
           }}
         />
-        <label for={uuid} class="ml-2 block text-sm leading-5 text-gray-900">
+        <label for={uuid} class="ml-2 text-sm leading-5 text-gray-900">
           {props.description}
         </label>
-      </>
+      </div>
     ));
+};
+
+const dlFiles = () => {
+  const date = new Date()
+    .toISOString()
+    .split("")
+    .filter((l) => /[0-9]/g.test(l))
+    .slice(0, 14)
+    .join("");
+  dl(stringify(parsedTags.value), `${date}-tags.yaml`);
+  dl(stringify(parsedFile.value), `${date}-file.yaml`);
 };
 
 export default function Main() {
@@ -470,108 +481,130 @@ export default function Main() {
     return () => clearInterval(i);
   }, []);
 
+  const showModal = useSignal(false);
+
   return (
-    <div class="w-full mx-0 px-0">
-      <List />
-      {error.value && (
-        <div
-          class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
-          role="alert"
+    <>
+      <div class="fixed top-0 right-5 z-20">
+        <span
+          class="hover:underline cursor-pointer text-blue-200 p-1"
+          onClick={dlFiles}
         >
-          <strong class="font-bold">Error in yaml {error.value.file}!</strong>
-          <span class="block sm:inline">
-            <div class="p-4">
-              {error.value.mark.buffer.substring(
-                error.value.mark.position - 30,
-                error.value.mark.position + 30,
-              ).split("\n").map((x) => <p>{x}</p>)}
-            </div>
-            {`line: ${error.value.mark.line}, column: ${error.value.mark.column}`}
-          </span>
-        </div>
-      )}
-      <div class="grid grid-flow-col auto-cols-max grid-cols-6">
-        <div>
-          <h3>Yaml Tags</h3>
-          <textarea
-            rows={10}
-            onChange={(e) => localYamlTags.value = e.currentTarget.value}
-          >
-            {localYamlTags}
-          </textarea>
-        </div>
-        <div>
-          <h3>Yaml File</h3>
-          <textarea
-            rows={10}
-            onChange={(e) => localYamlFile.value = e.currentTarget.value}
-          >
-            {localYamlFile}
-          </textarea>
-        </div>
-
-        <button
-          type="button"
-          class="py-2 px-3 bg-black text-white text-sm font-semibold rounded-md shadow focus:outline-none"
-          onClick={() => {
-            const tags = parseTags(localYamlTags.value);
-            if (!tags) {
-              console.error("no tags");
-              return;
-            }
-            parsedTags.value = tags;
-            const file = parseFile(localYamlFile.value);
-            if (!file) {
-              console.error("no file");
-              return;
-            }
-            parsedFile.value = file;
-          }}
+          dl
+        </span>
+        <span
+          class="hover:underline cursor-pointer text-blue-200"
+          onClick={() => showModal.value = !showModal.value}
         >
-          Parse
-        </button>
-
-        <button
-          type="button"
-          class="py-2 px-3 bg-black text-white text-sm font-semibold rounded-md shadow focus:outline-none"
-          onClick={() => {
-            const date = new Date()
-              .toISOString()
-              .split("")
-              .filter((l) => /[0-9]/g.test(l))
-              .slice(0, 14)
-              .join("");
-            dl(stringify(parsedTags.value), `${date}-tags.yaml`);
-            dl(stringify(parsedFile.value), `${date}-file.yaml`);
-          }}
-        >
-          Download
-        </button>
-
-        <button
-          class="py-2 px-3 bg-black text-white text-sm font-semibold rounded-md shadow focus:outline-none"
-          onClick={() =>
-            navigator.clipboard.writeText(stringify(parsedTags.value))}
-        >
-          Save tags to clipboard
-        </button>
-        <button
-          class="py-2 px-3 bg-black text-white text-sm font-semibold rounded-md shadow focus:outline-none"
-          onClick={() =>
-            navigator.clipboard.writeText(stringify(parsedFile.value))}
-        >
-          Save yaml to clipboard
-        </button>
-        <Option
-          name="item_in_separate_row"
-          description="Item label in separate row?"
-        />
-        <Option
-          name="enlarge_categories"
-          description="How many categories should have double width?"
-          options={["0", "1", "2", "3", "4", "5", "6"]}
-        />
+          cfg
+        </span>
       </div>
-    </div>
+      <div class="w-full mx-0 px-0">
+        <List />
+      </div>
+      <div
+        tabIndex={-1}
+        aria-hidden="true"
+        class={`${
+          showModal.value ? "" : "hidden"
+        } bg-black opacity-95 overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 p-4 w-full md:inset-0 md:h-full`}
+      >
+        <div class="relative bg-white p-8 rounded-lg shadow-lg w-full md:w-3/4 mx-auto h-full md:h-auto">
+          <div
+            class="p-3 font-bold cursor-pointer absolute right-0 top-0 text-blue-200"
+            onClick={() => showModal.value = false}
+          >
+            ✖
+          </div>
+          {error.value && (
+            <div
+              class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+              role="alert"
+            >
+              <strong class="font-bold">
+                Error in yaml {error.value.file}!
+              </strong>
+              <span class="block sm:inline">
+                <div class="p-4">
+                  {error.value.mark.buffer.substring(
+                    error.value.mark.position - 30,
+                    error.value.mark.position + 30,
+                  ).split("\n").map((x) => <p>{x}</p>)}
+                </div>
+                {`line: ${error.value.mark.line}, column: ${error.value.mark.column}`}
+              </span>
+            </div>
+          )}
+
+          <div class="grid grid-flow-col auto-cols-max grid-cols-2">
+            <div class="relative">
+              <h3>Yaml Tags</h3>
+              <div
+                class="mx-2 my-5 hover:underline font-bold cursor-pointer absolute right-0 top-0 text-blue-200"
+                onClick={() =>
+                  navigator.clipboard.writeText(stringify(parsedTags.value))}
+              >
+                copy
+              </div>
+              <textarea
+                class="text-[9px] w-full h-96 bg-gray-100"
+                onChange={(e) => localYamlTags.value = e.currentTarget.value}
+              >
+                {localYamlTags}
+              </textarea>
+            </div>
+            <div class="relative">
+              <h3>Yaml File</h3>
+              <div
+                class="mx-2 my-5 hover:underline font-bold cursor-pointer absolute right-0 top-0 text-blue-200"
+                onClick={() =>
+                  navigator.clipboard.writeText(stringify(parsedFile.value))}
+              >
+                copy
+              </div>
+              <textarea
+                class="text-[9px] w-full h-96 bg-gray-100"
+                onChange={(e) => localYamlFile.value = e.currentTarget.value}
+              >
+                {localYamlFile}
+              </textarea>
+            </div>
+          </div>
+
+          <div class="p-3 text-center self-center">
+            <button
+              type="button"
+              class="py-2 px-3 bg-black text-white text-sm font-semibold rounded-md shadow focus:outline-none"
+              onClick={() => {
+                const tags = parseTags(localYamlTags.value);
+                if (!tags) {
+                  console.error("no tags");
+                  return;
+                }
+                parsedTags.value = tags;
+                const file = parseFile(localYamlFile.value);
+                if (!file) {
+                  console.error("no file");
+                  return;
+                }
+                parsedFile.value = file;
+              }}
+            >
+              Parse tags and file from input boxes
+            </button>
+
+            <Option
+              name="item_in_separate_row"
+              description="Item label in separate row?"
+            />
+            {/* <Option
+              name="enlarge_categories"
+              description="How many categories should have double width?"
+              options={["0", "1", "2", "3", "4", "5", "6"]}
+            /> */}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
