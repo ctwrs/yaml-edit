@@ -57,22 +57,6 @@ const parseTags = (tags: string) => {
   return parsed;
 };
 
-const widestTagCategories = computed(() => {
-  const tags = parsedTags.value;
-  const categories = Object.keys(tags);
-  const widest = categories.reduce((acc, category) => {
-    acc[category] = tags[category].sort((a, b) =>
-      a.length - b.length
-    ).reverse()[0];
-    return acc;
-  }, {} as Record<string, string>);
-
-  const r = Object.keys(widest).sort((a, b) =>
-    widest[a].length - widest[b].length
-  ).reverse().slice(0, parseInt(config.value.enlarge_categories)); // an array of categories sorted by length of the widest tag
-  return r;
-});
-
 type File = Record<string, { Tags: string[] }>;
 const parsedFile = signal<File>({});
 
@@ -123,7 +107,6 @@ const TagCategory = function TagCategory(
     tags: Signal<string[]>;
     category: string[];
     categoryName: string;
-    colSpan: number;
   },
 ) {
   const showList = useSignal(true);
@@ -142,7 +125,6 @@ const TagCategory = function TagCategory(
   return (
     <td
       class="text-sm text-gray-300"
-      colSpan={props.colSpan}
     >
       <div class=" overflow-auto overflow-x-auto h-64">
         <ul>
@@ -170,7 +152,6 @@ const TagCategoryHeader = function TagCategoryHeader(
     <>
       <th
         class="sticky top-0"
-        colSpan={widestTagCategories.value.includes(props.categoryName) ? 2 : 1}
       >
         <p>{props.categoryName}</p>
         <InputBox
@@ -196,11 +177,6 @@ const TagCategoryHeader = function TagCategoryHeader(
           }}
         />
       </th>
-      {
-        /* {widestTagCategories.value.includes(props.categoryName)
-        ? <th></th>
-        : <></>} */
-      }
     </>
   );
 };
@@ -282,7 +258,6 @@ const Entry = function Entry(
         tags={tags}
         category={props.s.value[category]}
         categoryName={category}
-        colSpan={widestTagCategories.value.includes(category) ? 2 : 1}
       />
     ));
 
@@ -431,7 +406,10 @@ const dlFiles = () => {
     .filter((l) => /[0-9]/g.test(l))
     .slice(0, 14)
     .join("");
-  dl(stringify(parsedTags.value), `${date}-tags.yaml`);
+  const opts = {sortKeys: () => 0};
+  console.log(parsedTags.value);
+  console.log(stringify(parsedTags.value, opts));
+  dl(stringify(parsedTags.value, opts), `${date}-tags.yaml`);
   dl(stringify(parsedFile.value), `${date}-file.yaml`);
 };
 
@@ -526,8 +504,9 @@ export default function Main() {
               <strong class="font-bold">
                 Error in yaml {error.value.file}!
               </strong>
+              { error.value.mark ? (
               <span class="block sm:inline">
-                <div class="p-4">
+                 <div class="p-4">
                   {error.value.mark.buffer.substring(
                     error.value.mark.position - 30,
                     error.value.mark.position + 30,
@@ -535,6 +514,12 @@ export default function Main() {
                 </div>
                 {`line: ${error.value.mark.line}, column: ${error.value.mark.column}`}
               </span>
+              ) : (
+                <span class="block sm:inline">
+                  {JSON.stringify(error.value)}
+                </span>
+              )}
+
             </div>
           )}
 
@@ -617,11 +602,6 @@ export default function Main() {
               name="item_in_separate_row"
               description="Item label in separate row?"
             />
-            {/* <Option
-              name="enlarge_categories"
-              description="How many categories should have double width?"
-              options={["0", "1", "2", "3", "4", "5", "6"]}
-            /> */}
           </div>
         </div>
       </div>
