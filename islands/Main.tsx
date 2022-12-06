@@ -407,10 +407,13 @@ const dlFiles = () => {
     .slice(0, 14)
     .join("");
   const opts = {sortKeys: () => 0};
-  console.log(parsedTags.value);
-  console.log(stringify(parsedTags.value, opts));
-  dl(stringify(parsedTags.value, opts), `${date}-tags.yaml`);
+  const tagLookup = Object
+    .keys(parsedTags.value)
+    .reduce((acc, category) => ([ ...acc, ...parsedTags.value[category] ]), [] as string[])
+    .reduce((acc, tag, i) => ({ ...acc, [tag]: i }), {} as Record<string, number>);
+  Object.keys(parsedFile.value).forEach((category) => { parsedFile.value[category].Tags.sort((a, b) => tagLookup[a] - tagLookup[b]) });
   dl(stringify(parsedFile.value), `${date}-file.yaml`);
+  dl(stringify(parsedTags.value, opts), `${date}-tags.yaml`);
 };
 
 export default function Main() {
