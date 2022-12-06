@@ -4,6 +4,7 @@ import { parse, stringify } from "yaml";
 import { useEffect, useMemo } from "preact/hooks";
 import {
   computed,
+  effect,
   Signal,
   signal,
   useComputed,
@@ -12,9 +13,27 @@ import {
 
 import { yamlFile, yamlTags } from "../data/TestData.ts";
 
+const TAGS_KEY = 'yamlTags';
+const FILE_KEY = 'yamlFile';
+const CONFIG_KEY = 'config';
+const LOG = true;
+
+
+
 let ls: Storage;
 if (typeof localStorage !== "undefined") {
-  ls = localStorage;
+  // @ts-ignore we dont use more than get and set
+  ls = {
+    getItem: (x) => {
+      const i = localStorage.getItem(x);
+      // console.log('getItem', x, i);
+      return i;
+    },
+    setItem: (x, y) => {
+      // console.log('setItem', x, y);
+      localStorage.setItem(x, y);
+    },
+  };
 } else {
   // @ts-ignore we dont use more than get and set
   ls = {
@@ -59,6 +78,10 @@ const parseTags = (tags: string) => {
 
 type File = Record<string, { Tags: string[] }>;
 const parsedFile = signal<File>({});
+
+effect(() => {
+  console.log(parsedFile.value);
+})
 
 const parseFile = (file: string) => {
   let parsed: File;
@@ -361,7 +384,7 @@ const Option = function Option(
             if (!config.value[props.name]) return;
             config.value[props.name] = e.currentTarget.value;
             config.value = { ...config.value };
-            ls.setItem("config", JSON.stringify(config.value));
+            ls.setItem(CONFIG_KEY, JSON.stringify(config.value));
           }}
           value={config.value[props.name]}
         >
@@ -389,7 +412,7 @@ const Option = function Option(
                 ? "true"
                 : "false",
             };
-            ls.setItem("config", JSON.stringify(config.value));
+            ls.setItem(CONFIG_KEY, JSON.stringify(config.value));
           }}
         />
         <label for={uuid} class="ml-2 text-sm leading-5 text-gray-900">
@@ -426,7 +449,7 @@ export default function Main() {
     console.log("loading config");
     if (triedLoading.value) return;
     triedLoading.value = true;
-    localYamlTags.value = ls.getItem("yamlTags") || yamlTags;
+    localYamlTags.value = ls.getItem(TAGS_KEY) || yamlTags;
     const tags = parseTags(localYamlTags.value);
     if (!tags) {
       console.error("no tags");
@@ -434,7 +457,8 @@ export default function Main() {
     }
     parsedTags.value = tags;
 
-    localYamlFile.value = ls.getItem("yamlFile") || yamlFile;
+    localYamlFile.value = ls.getItem(FILE_KEY) || yamlFile;
+    console.log(localYamlFile.value);
     const file = parseFile(localYamlFile.value);
     if (!file) {
       console.error("no file");
@@ -443,7 +467,7 @@ export default function Main() {
     parsedFile.value = file;
 
     config.value = JSON.parse(
-      ls.getItem("config") || JSON.stringify(config.value),
+      ls.getItem(CONFIG_KEY) || JSON.stringify(config.value),
     );
   }, [triedLoading.value]);
 
@@ -451,13 +475,13 @@ export default function Main() {
     const i = setInterval(() => {
       if (Object.keys(parsedTags.value).length > 0) {
         const tags = stringify(parsedTags.value);
-        ls.setItem("yamlTags", tags);
-        localYamlTags.value = tags;
+        ls.setItem(TAGS_KEY, tags);
+        // localYamlTags.value = tags;
       }
       if (Object.keys(parsedFile.value).length > 0) {
         const file = stringify(parsedFile.value);
-        ls.setItem("yamlFile", file);
-        localYamlFile.value = file;
+        ls.setItem(FILE_KEY, file);
+        // localYamlFile.value = file;
       }
     }, 10000);
 
@@ -538,9 +562,16 @@ export default function Main() {
               </div>
               <textarea
                 class="text-[9px] w-full h-96 bg-gray-100"
-                onChange={(e) => localYamlTags.value = e.currentTarget.value}
+                onBlur={(e) => {
+                  // log('onChange', e.currentTarget.value);
+                  localYamlTags.value = e.currentTarget.value
+                }}
+                onPaste={(e) => {
+                  console.log('onPaste', e.currentTarget.value);
+                  localYamlTags.value = e.currentTarget.value
+                }}
               >
-                {localYamlTags}
+                {localYamlTags.value}
               </textarea>
             </div>
             <div class="relative">
@@ -554,9 +585,16 @@ export default function Main() {
               </div>
               <textarea
                 class="text-[9px] w-full h-96 bg-gray-100"
-                onChange={(e) => localYamlFile.value = e.currentTarget.value}
+                onBlur={(e) => {
+                  // log('onChange', e.currentTarget.value)
+                  localYamlFile.value = e.currentTarget.value
+                }}
+                onPaste={(e) => {
+                  console.log('onPaste', e.currentTarget.value)
+                  localYamlFile.value = e.currentTarget.value
+                }}
               >
-                {localYamlFile}
+                {localYamlFile.value}
               </textarea>
             </div>
           </div>
@@ -587,9 +625,9 @@ export default function Main() {
               type="button"
               class="py-2 px-3 bg-black hover:bg-red-200 text-white text-sm font-semibold rounded-md shadow focus:outline-none"
               onClick={() => {
-                ls.removeItem("yamlTags");
-                ls.removeItem("yamlFile");
-                ls.removeItem("config");
+                ls.removeItem(TAGS_KEY);
+                ls.removeItem(FILE_KEY);
+                ls.removeItem(CONFIG_KEY);
                 parsedTags.value = {};
                 parsedFile.value = {};
                 config.value = {
