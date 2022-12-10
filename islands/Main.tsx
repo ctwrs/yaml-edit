@@ -3,22 +3,15 @@ import { parse, stringify } from "yaml";
 
 import { useEffect, useMemo } from "preact/hooks";
 import {
-  computed,
-  effect,
   Signal,
   signal,
   useComputed,
   useSignal,
 } from "@preact/signals";
 
-import { yamlFile, yamlTags } from "../data/TestData.ts";
-
-const TAGS_KEY = 'yamlTags';
-const FILE_KEY = 'yamlFile';
-const CONFIG_KEY = 'config';
-const LOG = true;
-
-
+const TAGS_KEY = "yamlTags";
+const FILE_KEY = "yamlFile";
+const CONFIG_KEY = "config";
 
 let ls: Storage;
 if (typeof localStorage !== "undefined") {
@@ -32,6 +25,10 @@ if (typeof localStorage !== "undefined") {
     setItem: (x, y) => {
       // console.log('setItem', x, y);
       localStorage.setItem(x, y);
+    },
+    removeItem: (x) => {
+      // console.log('removeItem', x);
+      localStorage.removeItem(x);
     },
   };
 } else {
@@ -78,10 +75,6 @@ const parseTags = (tags: string) => {
 
 type File = Record<string, { Tags: string[] }>;
 const parsedFile = signal<File>({});
-
-effect(() => {
-  console.log(parsedFile.value);
-})
 
 const parseFile = (file: string) => {
   let parsed: File;
@@ -146,9 +139,7 @@ const TagCategory = function TagCategory(
     }
   };
   return (
-    <td
-      class="text-sm text-gray-300"
-    >
+    <td class="text-sm text-gray-300">
       <div class=" overflow-auto overflow-x-auto h-64">
         <ul>
           {props.category &&
@@ -173,9 +164,7 @@ const TagCategoryHeader = function TagCategoryHeader(
   });
   return (
     <>
-      <th
-        class="sticky top-0"
-      >
+      <th class="sticky top-0">
         <p>{props.categoryName}</p>
         <InputBox
           isValid={(value) => {
@@ -321,8 +310,11 @@ const Entry = function Entry(
 };
 
 const List = function List() {
-  if (!parsedFile.value) return null;
-  if (!parsedTags.value) return null;
+  if (
+    !parsedFile.value || !parsedTags.value ||
+    Object.keys(parsedFile.value).length === 0 ||
+    Object.keys(parsedTags.value).length === 0
+  ) return <p>Nothing to show. Load data in cfg.</p>;
 
   return (
     <table class="align-top table-auto w-full p-10">
@@ -429,12 +421,20 @@ const dlFiles = () => {
     .filter((l) => /[0-9]/g.test(l))
     .slice(0, 14)
     .join("");
-  const opts = {sortKeys: () => 0};
+  const opts = { sortKeys: () => 0 };
   const tagLookup = Object
     .keys(parsedTags.value)
-    .reduce((acc, category) => ([ ...acc, ...parsedTags.value[category] ]), [] as string[])
-    .reduce((acc, tag, i) => ({ ...acc, [tag]: i }), {} as Record<string, number>);
-  Object.keys(parsedFile.value).forEach((category) => { parsedFile.value[category].Tags.sort((a, b) => tagLookup[a] - tagLookup[b]) });
+    .reduce(
+      (acc, category) => [...acc, ...parsedTags.value[category]],
+      [] as string[],
+    )
+    .reduce(
+      (acc, tag, i) => ({ ...acc, [tag]: i }),
+      {} as Record<string, number>,
+    );
+  Object.keys(parsedFile.value).forEach((category) => {
+    parsedFile.value[category].Tags.sort((a, b) => tagLookup[a] - tagLookup[b]);
+  });
   dl(stringify(parsedFile.value), `${date}-file.yaml`);
   dl(stringify(parsedTags.value, opts), `${date}-tags.yaml`);
 };
@@ -449,7 +449,7 @@ export default function Main() {
     console.log("loading config");
     if (triedLoading.value) return;
     triedLoading.value = true;
-    localYamlTags.value = ls.getItem(TAGS_KEY) || yamlTags;
+    localYamlTags.value = ls.getItem(TAGS_KEY) || "";
     const tags = parseTags(localYamlTags.value);
     if (!tags) {
       console.error("no tags");
@@ -457,7 +457,7 @@ export default function Main() {
     }
     parsedTags.value = tags;
 
-    localYamlFile.value = ls.getItem(FILE_KEY) || yamlFile;
+    localYamlFile.value = ls.getItem(FILE_KEY) || "";
     console.log(localYamlFile.value);
     const file = parseFile(localYamlFile.value);
     if (!file) {
@@ -531,22 +531,23 @@ export default function Main() {
               <strong class="font-bold">
                 Error in yaml {error.value.file}!
               </strong>
-              { error.value.mark ? (
-              <span class="block sm:inline">
-                 <div class="p-4">
-                  {error.value.mark.buffer.substring(
-                    error.value.mark.position - 30,
-                    error.value.mark.position + 30,
-                  ).split("\n").map((x) => <p>{x}</p>)}
-                </div>
-                {`line: ${error.value.mark.line}, column: ${error.value.mark.column}`}
-              </span>
-              ) : (
-                <span class="block sm:inline">
-                  {JSON.stringify(error.value)}
-                </span>
-              )}
-
+              {error.value.mark
+                ? (
+                  <span class="block sm:inline">
+                    <div class="p-4">
+                      {error.value.mark.buffer.substring(
+                        error.value.mark.position - 30,
+                        error.value.mark.position + 30,
+                      ).split("\n").map((x) => <p>{x}</p>)}
+                    </div>
+                    {`line: ${error.value.mark.line}, column: ${error.value.mark.column}`}
+                  </span>
+                )
+                : (
+                  <span class="block sm:inline">
+                    {JSON.stringify(error.value)}
+                  </span>
+                )}
             </div>
           )}
 
@@ -564,11 +565,11 @@ export default function Main() {
                 class="text-[9px] w-full h-96 bg-gray-100"
                 onBlur={(e) => {
                   // log('onChange', e.currentTarget.value);
-                  localYamlTags.value = e.currentTarget.value
+                  localYamlTags.value = e.currentTarget.value;
                 }}
                 onPaste={(e) => {
-                  console.log('onPaste', e.currentTarget.value);
-                  localYamlTags.value = e.currentTarget.value
+                  // console.log('onPaste', e.currentTarget.value);
+                  localYamlTags.value = e.currentTarget.value;
                 }}
               >
                 {localYamlTags.value}
@@ -587,11 +588,11 @@ export default function Main() {
                 class="text-[9px] w-full h-96 bg-gray-100"
                 onBlur={(e) => {
                   // log('onChange', e.currentTarget.value)
-                  localYamlFile.value = e.currentTarget.value
+                  localYamlFile.value = e.currentTarget.value;
                 }}
                 onPaste={(e) => {
-                  console.log('onPaste', e.currentTarget.value)
-                  localYamlFile.value = e.currentTarget.value
+                  // console.log('onPaste', e.currentTarget.value)
+                  localYamlFile.value = e.currentTarget.value;
                 }}
               >
                 {localYamlFile.value}
@@ -618,7 +619,7 @@ export default function Main() {
                 parsedFile.value = file;
               }}
             >
-              Parse tags and file from input boxes
+              Parse
             </button>
 
             <button
@@ -628,6 +629,8 @@ export default function Main() {
                 ls.removeItem(TAGS_KEY);
                 ls.removeItem(FILE_KEY);
                 ls.removeItem(CONFIG_KEY);
+                localYamlFile.value = "";
+                localYamlTags.value = "";
                 parsedTags.value = {};
                 parsedFile.value = {};
                 config.value = {
@@ -636,7 +639,7 @@ export default function Main() {
                 };
               }}
             >
-              Clear out local storage (potential for data loss!)
+              Nuke ☢️
             </button>
 
             <Option

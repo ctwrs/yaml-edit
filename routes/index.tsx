@@ -8,7 +8,7 @@ export default function Home() {
         <title>Fresh App</title>
       </Head>
       <div class="bg-gray-100 text-gray-900 w-full">
-        <Main/>
+        <Main />
       </div>
     </>
   );
